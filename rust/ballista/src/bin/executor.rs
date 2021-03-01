@@ -14,7 +14,7 @@
 
 //! Ballista Rust executor binary.
 
-use std::{convert::TryInto, sync::Arc, time::Duration};
+use std::{convert::TryInto, sync::Arc, time::Duration, time::SystemTime};
 
 use anyhow::{Context, Result};
 use arrow_flight::flight_service_server::FlightServiceServer;
@@ -57,6 +57,7 @@ use config::prelude::*;
 struct CurrentTaskInformation {
     task_id: PartitionId,
     result: Option<ballista::error::Result<()>>,
+    start_time: u64
 }
 
 async fn poll_loop(
@@ -70,11 +71,15 @@ async fn poll_loop(
         debug!("Starting registration with scheduler");
         let mut task_status = vec![];
         let mut running_task_guard = running_task.lock().await;
-        if let Some(CurrentTaskInformation { task_id, result }) = &*running_task_guard {
+        if let Some(CurrentTaskInformation { task_id, result, start_time}) = &*running_task_guard {
             let task_id = task_id.clone();
+            let start_time = start_time.clone();
             match result {
                 Some(Ok(_)) => {
                     info!("Current task finished");
+                    let end_time = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .expect("SystemTime failed to compare to Unix Epoch.");
                     *running_task_guard = None;
                     task_status.push(TaskStatus {
                         job_id: task_id.job_id,
@@ -82,7 +87,9 @@ async fn poll_loop(
                         partition_id: task_id.partition_id,
                         status: Some(task_status::Status::Completed(CompletedTask {
                             executor_id: executor_meta.id.clone(),
+                            end_time: end_time.as_secs()
                         })),
+                        start_time: start_time,
                     });
                 }
                 Some(Err(e)) => {
@@ -96,6 +103,7 @@ async fn poll_loop(
                         status: Some(task_status::Status::Failed(FailedTask {
                             error: format!("Task failed due to Tokio error: {}", error_msg),
                         })),
+                        start_time: start_time
                     });
                 }
                 None => {
@@ -117,12 +125,16 @@ async fn poll_loop(
                 if let Some(task) = result.into_inner().task {
                     info!("Received task {:?}", task.task_id.as_ref().unwrap());
                     let plan: Arc<dyn ExecutionPlan> = (&task.plan.unwrap()).try_into().unwrap();
+                    let start_time: Duration = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .expect("SystemTime failed to compare to Unix Epoch.");
                     let task_id = task.task_id.unwrap();
                     {
                         let mut running_task = running_task.lock().await;
                         *running_task = Some(CurrentTaskInformation {
                             task_id: task_id.clone(),
                             result: None,
+                            start_time: start_time.as_secs(),
                         });
                     }
                     // TODO: This is a convoluted way of executing the task. We should move the task
@@ -143,6 +155,7 @@ async fn poll_loop(
                         *running_task = Some(CurrentTaskInformation {
                             task_id,
                             result: Some(r.map(|_| ())),
+                            start_time: start_time.as_secs(),
                         });
                     });
                 }

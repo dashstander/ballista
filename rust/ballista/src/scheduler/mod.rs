@@ -21,6 +21,7 @@ pub mod state;
 use std::ffi::OsStr;
 use std::fmt;
 use std::{convert::TryInto, sync::Arc};
+use std::time::{Duration, SystemTime};
 
 use crate::serde::protobuf::{
     execute_query_params::Query, job_status, scheduler_grpc_server::SchedulerGrpc, CompletedJob,
@@ -269,7 +270,9 @@ impl SchedulerGrpc for SchedulerServer {
                     .take(7)
                     .collect()
             };
-
+            let start_time: Duration = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH).
+                expect("System clock failed to compare to Unix Epoch Time.");
             // Save placeholder job metadata
             self.state
                 .save_job_metadata(
@@ -277,6 +280,7 @@ impl SchedulerGrpc for SchedulerServer {
                     &job_id,
                     &JobStatus {
                         status: Some(job_status::Status::Queued(QueuedJob {})),
+                        start_time: start_time.as_secs()
                     },
                 )
                 .await
@@ -300,9 +304,11 @@ impl SchedulerGrpc for SchedulerServer {
                                         &namespace,
                                         &job_id_spawn,
                                         &JobStatus {
-                                            status: Some(job_status::Status::Failed(FailedJob {
-                                                error: format!("{}", error),
-                                            })),
+                                            status: Some(
+                                                job_status::Status::Failed(FailedJob {
+                                                    error: format!("{}", error),
+                                                })),
+                                            start_time: start_time.as_secs()
                                         },
                                     )
                                     .await
@@ -337,6 +343,7 @@ impl SchedulerGrpc for SchedulerServer {
                         &job_id_spawn,
                         &JobStatus {
                             status: Some(job_status::Status::Running(RunningJob {})),
+                            start_time: start_time.as_secs()
                         },
                     )
                     .await
@@ -374,12 +381,16 @@ impl SchedulerGrpc for SchedulerServer {
                             tonic::Status::internal(msg)
                         }));
                     let num_partitions = stage.output_partitioning().partition_count();
+                    let start_time = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .expect("System clock failed to compare to Unix Epoch Time.");
                     for partition_id in 0..num_partitions {
                         let pending_status = TaskStatus {
                             job_id: job_id_spawn.clone(),
                             stage_id: stage.stage_id as u32,
                             partition_id: partition_id as u32,
                             status: None,
+                            start_time: start_time.as_secs()
                         };
                         fail_job!(state
                             .save_task_status(&namespace, &pending_status)

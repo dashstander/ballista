@@ -17,6 +17,7 @@ use std::{
     io::{Cursor, Read},
     sync::Arc,
     time::Duration,
+    time::SystemTime
 };
 
 use datafusion::physical_plan::ExecutionPlan;
@@ -220,6 +221,7 @@ impl SchedulerState {
                             let referenced_task: TaskStatus = decode_protobuf(referenced_task)?;
                             if let Some(task_status::Status::Completed(CompletedTask {
                                 executor_id,
+                                ..
                             })) = referenced_task.status
                             {
                                 let empty = vec![];
@@ -244,11 +246,10 @@ impl SchedulerState {
                     }
                 }
                 let plan = remove_unresolved_shuffles(plan.as_ref(), &partition_locations)?;
-
                 // If we get here, there are no more unresolved shuffled and the task can be run
-                status.status = Some(task_status::Status::Running(RunningTask {
-                    executor_id: executor_id.to_owned(),
-                }));
+                status.status = Some(task_status::Status::Running(
+                    RunningTask { executor_id: executor_id.to_owned() },
+                ));
                 self.save_task_status(namespace, &status).await?;
                 return Ok(Some((status, plan)));
             }
@@ -278,14 +279,15 @@ impl SchedulerState {
             let new_status = self
                 .get_job_status_from_tasks(namespace, job_id, &executors)
                 .await?;
-            if let Some(new_status) = new_status {
-                if status != new_status {
+            if let Some(mut new_status) = new_status {
+                if status.status != new_status.status {
                     info!(
                         "Changing status for job {} to {:?}",
                         job_id, new_status.status
                     );
                     debug!("Old status: {:?}", status);
                     debug!("New status: {:?}", new_status);
+                    new_status.start_time = status.start_time;
                     self.save_job_metadata(namespace, job_id, &new_status)
                         .await?;
                 }
@@ -315,7 +317,7 @@ impl SchedulerState {
         let mut job_status = statuses
             .iter()
             .map(|status| match &status.status {
-                Some(task_status::Status::Completed(CompletedTask { executor_id })) => {
+                Some(task_status::Status::Completed(CompletedTask { executor_id, .. })) => {
                     Ok((status, executor_id))
                 }
                 _ => Err(BallistaError::General("Task not completed".to_string())),
@@ -334,7 +336,10 @@ impl SchedulerState {
                         executor_meta: executors.get(execution_id).map(|e| e.clone().into()),
                     })
                     .collect();
-                job_status::Status::Completed(CompletedJob { partition_location })
+                let end_time: Duration = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("System clock failed to compare to Unix Epoch Time.");
+                job_status::Status::Completed(CompletedJob { partition_location, end_time: end_time.as_secs() })
             });
 
         if job_status.is_none() {
@@ -354,6 +359,8 @@ impl SchedulerState {
         }
         Ok(job_status.map(|status| JobStatus {
             status: Some(status),
+            // Placeholder to be replaced by the original start time
+            start_time: 0
         }))
     }
 }
