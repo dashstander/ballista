@@ -481,6 +481,7 @@ message FailedTask {
 
 message CompletedTask {
   string executor_id = 1;
+  int64 end_time = 2;
 }
 
 // TODO: Maybe it would be a good idea to use PartitionId as a field member?
@@ -493,6 +494,7 @@ message TaskStatus {
     FailedTask failed = 5;
     CompletedTask completed = 6;
   }
+  int64 start_time = 7;
 }
 
 message PollWorkParams {
@@ -531,6 +533,7 @@ message GetJobStatusParams {
 
 message CompletedJob {
   repeated PartitionLocation partition_location = 1;
+  int64 end_time = 2;
 }
 
 message QueuedJob {}
@@ -549,6 +552,7 @@ message JobStatus {
     FailedJob failed = 3;
     CompletedJob completed = 4;
   }
+  int64 start_time = 5;
 }
 
 message GetJobStatusResult {
