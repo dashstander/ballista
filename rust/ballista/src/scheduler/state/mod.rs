@@ -499,6 +499,7 @@ mod test {
         let state = SchedulerState::new(Arc::new(StandaloneClient::try_new_temporary()?));
         let meta = JobStatus {
             status: Some(job_status::Status::Queued(QueuedJob {})),
+            start_time: 1614585600, //2021-03-01 00:00:00 PDT as a Unix Epoch
         };
         state.save_job_metadata("test", "job", &meta).await?;
         let result = state.get_job_metadata("test", "job").await?;
@@ -515,6 +516,7 @@ mod test {
         let state = SchedulerState::new(Arc::new(StandaloneClient::try_new_temporary()?));
         let meta = JobStatus {
             status: Some(job_status::Status::Queued(QueuedJob {})),
+            start_time: 1614585600,
         };
         state.save_job_metadata("test", "job", &meta).await?;
         let result = state.get_job_metadata("test2", "job2").await;
@@ -532,6 +534,7 @@ mod test {
             job_id: "job".to_owned(),
             stage_id: 1,
             partition_id: 2,
+            start_time: 1614585600,
         };
         state.save_task_status("test", &meta).await?;
         let result = state._get_task_status("test", "job", 1, 2).await?;
@@ -553,6 +556,7 @@ mod test {
             job_id: "job".to_owned(),
             stage_id: 1,
             partition_id: 2,
+            start_time: 1614585600,
         };
         state.save_task_status("test", &meta).await?;
         let result = state._get_task_status("test", "job", 25, 2).await;
@@ -567,6 +571,7 @@ mod test {
         let job_id = "job";
         let job_status = JobStatus {
             status: Some(job_status::Status::Queued(QueuedJob {})),
+            start_time: 1614585600,
         };
         state
             .save_job_metadata(namespace, job_id, &job_status)
@@ -584,6 +589,7 @@ mod test {
         let job_id = "job";
         let job_status = JobStatus {
             status: Some(job_status::Status::Running(RunningJob {})),
+            start_time: 1614585600,
         };
         state
             .save_job_metadata(namespace, job_id, &job_status)
@@ -591,10 +597,12 @@ mod test {
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900,
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 0,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         let meta = TaskStatus {
@@ -604,6 +612,7 @@ mod test {
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 1,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         state.synchronize_job_status(namespace).await?;
@@ -619,6 +628,7 @@ mod test {
         let job_id = "job";
         let job_status = JobStatus {
             status: Some(job_status::Status::Running(RunningJob {})),
+            start_time: 1614585600,
         };
         state
             .save_job_metadata(namespace, job_id, &job_status)
@@ -626,10 +636,12 @@ mod test {
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 0,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         let meta = TaskStatus {
@@ -637,6 +649,7 @@ mod test {
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 1,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         state.synchronize_job_status(namespace).await?;
@@ -652,6 +665,7 @@ mod test {
         let job_id = "job";
         let job_status = JobStatus {
             status: Some(job_status::Status::Running(RunningJob {})),
+            start_time: 1614585600,
         };
         state
             .save_job_metadata(namespace, job_id, &job_status)
@@ -659,19 +673,23 @@ mod test {
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900,
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 0,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900,
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 1,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         state.synchronize_job_status(namespace).await?;
@@ -690,6 +708,7 @@ mod test {
         let job_id = "job";
         let job_status = JobStatus {
             status: Some(job_status::Status::Queued(QueuedJob {})),
+            start_time: 1614585600,
         };
         state
             .save_job_metadata(namespace, job_id, &job_status)
@@ -697,19 +716,23 @@ mod test {
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900,
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 0,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900,
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 1,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         state.synchronize_job_status(namespace).await?;
@@ -728,6 +751,7 @@ mod test {
         let job_id = "job";
         let job_status = JobStatus {
             status: Some(job_status::Status::Running(RunningJob {})),
+            start_time: 1614585600,
         };
         state
             .save_job_metadata(namespace, job_id, &job_status)
@@ -735,10 +759,12 @@ mod test {
         let meta = TaskStatus {
             status: Some(task_status::Status::Completed(CompletedTask {
                 executor_id: "".to_owned(),
+                end_time: 1614585900,
             })),
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 0,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         let meta = TaskStatus {
@@ -748,6 +774,7 @@ mod test {
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 1,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         let meta = TaskStatus {
@@ -755,6 +782,7 @@ mod test {
             job_id: job_id.to_owned(),
             stage_id: 0,
             partition_id: 2,
+            start_time: 1614585600,
         };
         state.save_task_status(namespace, &meta).await?;
         state.synchronize_job_status(namespace).await?;
