@@ -1,6 +1,13 @@
 [workspace]
 
 members = [
-    "ballista",
     "benchmarks/tpch",
+    "client",
+    "core",
+    "executor",
+    "scheduler",
 ]
+
+[profile.release]
+lto = true
+codegen-units = 1
