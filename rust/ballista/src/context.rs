@@ -23,7 +23,7 @@ use std::{fs, time::Duration};
 use crate::serde::protobuf::scheduler_grpc_client::SchedulerGrpcClient;
 use crate::serde::protobuf::{
     execute_query_params::Query, job_status, ExecuteQueryParams, ExecuteQueryResult,
-    GetJobStatusParams, GetJobStatusResult,
+    GetJobStatusParams, GetJobStatusResult, JobStatus,
 };
 use crate::serde::scheduler::{Action, ExecutorMeta};
 use crate::{client::BallistaClient, serde::scheduler};
@@ -34,6 +34,7 @@ use crate::{
 
 use crate::scheduler::planner::DistributedPlanner;
 use arrow::datatypes::{Schema, SchemaRef};
+use chrono::{TimeZone, Utc};
 use datafusion::datasource::datasource::Statistics;
 use datafusion::datasource::TableProvider;
 use datafusion::error::Result as DFResult;
@@ -43,6 +44,7 @@ use datafusion::physical_plan::csv::CsvReadOptions;
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::{dataframe::DataFrame, physical_plan::RecordBatchStream};
 use log::{debug, error, info};
+use std::convert::TryFrom;
 use uuid::Uuid;
 
 #[allow(dead_code)]
@@ -239,21 +241,23 @@ impl BallistaDataFrame {
                 })
                 .await?
                 .into_inner();
-            let status = status.and_then(|s| s.status).ok_or_else(|| {
-                BallistaError::Internal("Received empty status message".to_owned())
-            })?;
+            
+            let (status, start_time) = status
+                .map(|JobStatus{status, start_time}| (status.unwrap(), start_time))
+                .ok_or_else(|| BallistaError::Internal("Received empty status message".to_owned()))?;
+            let queue_time: chrono::DateTime<Utc> = Utc.timestamp(i64::try_from(start_time).unwrap(), 0);
             let wait_future = tokio::time::sleep(Duration::from_millis(100));
             match status {
                 job_status::Status::Queued(_) => {
-                    info!("Job {} still queued...", job_id);
+                    info!("Job {} still queued, was queued at {}", job_id, queue_time);
                     wait_future.await;
                 }
                 job_status::Status::Running(_) => {
-                    info!("Job {} is running...", job_id);
+                    info!("Job {} queued at {} and is running...", job_id, queue_time);
                     wait_future.await;
                 }
                 job_status::Status::Failed(err) => {
-                    let msg = format!("Job {} failed: {}", job_id, err.error);
+                    let msg = format!("Job {} queued at {}, failed: {}", job_id, queue_time, err.error);
                     error!("{}", msg);
                     break Err(BallistaError::General(msg));
                 }

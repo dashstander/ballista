@@ -17,6 +17,7 @@ snmalloc = ["snmalloc-rs"]
 [dependencies]
 anyhow = "1"
 async-trait = "0.1.36"
+chrono = "0.4"
 clap = "2"
 configure_me = "0.4.0"
 crossbeam = "0.7"

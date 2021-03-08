@@ -170,6 +170,7 @@ dependencies = [
  "arrow",
  "arrow-flight",
  "async-trait",
+ "chrono",
  "clap",
  "configure_me",
  "configure_me_codegen",
